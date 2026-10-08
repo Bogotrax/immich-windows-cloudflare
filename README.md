@@ -1,6 +1,6 @@
 # Immich auf Windows (Docker Desktop) hinter einem Cloudflare Tunnel
 
-Funktionierendes Setup mit vier Containern: Immich-Server, Postgres (VectorChord), Redis und cloudflared.
+Funktionierendes Setup mit fünf Containern: Immich-Server, Machine Learning, Postgres (VectorChord), Redis und cloudflared.
 Läuft ohne Portfreigabe im Router, erreichbar über deine eigene Domain per Cloudflare Tunnel.
 
 ## Getestet mit (Stand 2026-10-08)
@@ -10,12 +10,15 @@ Läuft ohne Portfreigabe im Router, erreichbar über deine eigene Domain per Clo
 | Windows + Docker Desktop (WSL2-Backend) | Docker 29.8.2, Compose v5.5.1 |
 | Immich Server | **v3.2.0** (gepinnt) |
 | Postgres | `ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0` |
+| Machine Learning | `ghcr.io/immich-app/immich-machine-learning:v3.2.0` |
 | Redis | `redis:7-alpine` |
 | cloudflared | `latest` |
 
-Das Repo-Paket (Compose mit `.env`) wurde am 2026-10-08 in einem frischen Ordner mit neuen Volumes komplett durchgespielt:
-alle vier Container `Up`, Server `healthy restarts=0`, Ping-Antwort `{"res":"pong"}`.
-Nicht geprüft wurde dabei der Zugriff von außen über die Domain mit genau diesem frischen Stand.
+Das Repo-Paket (Compose mit `.env`) wurde am 2026-10-08 in einem frischen Ordner mit neuen Volumes durchgespielt:
+Container `Up`, Server `healthy restarts=0`, Ping-Antwort `{"res":"pong"}`.
+Der Machine-Learning-Container wurde danach im selben Stack ergänzt: Status `healthy`, und der Server meldet im Log
+`Machine learning server became healthy`.
+Nicht geprüft wurde, ob Smart Search und Gesichtserkennung mit echten Fotos funktionieren.
 
 ## Voraussetzungen
 
@@ -70,7 +73,7 @@ docker inspect immich-server --format "{{.State.Health.Status}} restarts={{.Rest
 curl.exe -s http://localhost:2283/api/server/ping
 ```
 
-Erwartet: Alle vier Container `Up`, Server `healthy restarts=0`, Antwort `{"res":"pong"}`.
+Erwartet: Alle fünf Container `Up`, Server `healthy restarts=0`, Antwort `{"res":"pong"}`.
 Dann `https://immich.deine-domain.de` im Browser öffnen.
 
 ### 6. Sofort den Admin-Account anlegen
@@ -110,6 +113,11 @@ Die Immich-Container liefen trotzdem, nur der Zugriff über die Domain ging nich
 Nach dem Eintragen des echten Tokens lief cloudflared (`Up`).
 Bei Problemen: `docker logs cloudflared --tail 15` und die `.env` prüfen, ohne den Token zu posten.
 
+**7. Ohne ML-Container steht im Server-Log `Machine learning server became unhealthy`.**
+Der Server sucht den Dienst unter `http://immich-machine-learning:3003`. Der Compose-Dienst muss deshalb genau
+`immich-machine-learning` heißen. Mit dem Dienst in dieser Compose-Datei wechselt die Meldung auf `became healthy`.
+Prüfen: `docker logs immich-server --tail 200 | Select-String "Machine learning"`
+
 ## Updates
 
 1. Release-Notes auf GitHub lesen (Breaking Changes!).
@@ -121,20 +129,7 @@ Vor jedem Update ein Backup machen (Immich-Doku: Administration, Backup and Rest
 
 ## Offen / nicht getestet
 
-- **Machine-Learning-Container fehlt.** Im Server-Log steht
-  `Machine learning server became unhealthy (http://immich-machine-learning:3003)`.
-  Smart Search und Gesichtserkennung funktionieren dadurch voraussichtlich nicht. Das Hochladen und Anzeigen läuft.
-  Ungetesteter Vorschlag, in `services:` einfügen und unter `volumes:` zusätzlich `model-cache:` ergänzen:
-
-  ```yaml
-    immich-machine-learning:
-      image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-v3.2.0}
-      container_name: immich-machine-learning
-      restart: unless-stopped
-      volumes:
-        - model-cache:/cache
-  ```
-
+- Smart Search und Gesichtserkennung wurden nicht mit echten Fotos getestet (nur: ML-Container ist `healthy` und vom Server erkannt).
 - Backups: nicht eingerichtet.
 - Handy-App: nicht getestet.
 

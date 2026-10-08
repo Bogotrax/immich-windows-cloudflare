@@ -46,6 +46,13 @@ services:
     container_name: immich-redis
     restart: unless-stopped
 
+  immich-machine-learning:
+    image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-v3.2.0}
+    container_name: immich-machine-learning
+    restart: unless-stopped
+    volumes:
+      - model-cache:/cache
+
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: cloudflared
@@ -59,3 +66,5 @@ services:
 volumes:
   immich_upload:
   immich_db:
+  model-cache:
+
